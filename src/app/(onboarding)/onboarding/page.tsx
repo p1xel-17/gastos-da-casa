@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation"
+import { eq } from "drizzle-orm"
 import {
   Card,
   CardContent,
@@ -9,8 +11,34 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field"
 import { createHousehold } from "./actions"
+import { createClient } from "@/lib/supabase/server"
+import { db } from "@/lib/db"
+import { householdMembers } from "@/lib/db/schema"
 
-export default function OnboardingPage() {
+export default async function OnboardingPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/login")
+  }
+
+  const existingMembership = await db
+    .select({ householdId: householdMembers.householdId })
+    .from(householdMembers)
+    .where(eq(householdMembers.userId, user.id))
+    .limit(1)
+    .then((rows) => rows[0])
+
+  // Já pertence a uma casa (ex: aceitou um convite antes de chegar aqui, ou
+  // deu refresh nesta página depois de já ter criado uma) — não deixa criar
+  // uma segunda casa órfã por engano.
+  if (existingMembership) {
+    redirect("/")
+  }
+
   return (
     <div className="flex min-h-svh items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-sm">

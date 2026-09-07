@@ -1,6 +1,7 @@
 "use server"
 
 import { redirect } from "next/navigation"
+import { eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { households, householdMembers, profiles, categories } from "@/lib/db/schema"
 import { createClient } from "@/lib/supabase/server"
@@ -42,6 +43,17 @@ export async function createHousehold(formData: FormData) {
 
   if (!user) {
     redirect("/login")
+  }
+
+  const existingMembership = await db
+    .select({ householdId: householdMembers.householdId })
+    .from(householdMembers)
+    .where(eq(householdMembers.userId, user.id))
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (existingMembership) {
+    redirect("/")
   }
 
   await ensureProfile(

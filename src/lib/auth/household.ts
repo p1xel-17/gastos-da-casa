@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { eq } from "drizzle-orm"
+import { asc, eq } from "drizzle-orm"
 import { createClient } from "@/lib/supabase/server"
 import { db } from "@/lib/db"
 import { households, householdMembers, profiles } from "@/lib/db/schema"
@@ -43,6 +43,10 @@ export async function requireHouseholdContext(): Promise<HouseholdContext> {
     .innerJoin(households, eq(householdMembers.householdId, households.id))
     .innerJoin(profiles, eq(profiles.id, householdMembers.userId))
     .where(eq(householdMembers.userId, user.id))
+    // Sem UI de troca de casa ainda: se o usuário pertencer a mais de uma
+    // (ex: criou a própria antes de aceitar um convite), fixamos sempre a
+    // mais antiga em vez de uma ordem arbitrária do Postgres.
+    .orderBy(asc(householdMembers.joinedAt))
     .limit(1)
     .then((rows) => rows[0])
 
